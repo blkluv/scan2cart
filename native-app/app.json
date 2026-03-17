@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "Scan2Cart",
+    "slug": "scancart",
+    "scheme": "scan2cart",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1a73e8"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png",
+        "backgroundColor": "#1a73e8"
+      },
+      "package": "com.scancart.app",
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      ["expo-camera", { "cameraPermission": "ScanCart needs camera access to scan your shopping list." }],
+      ["expo-image-picker", { "photosPermission": "ScanCart needs photo access to scan your shopping list." }],
+      ["expo-location", { "locationWhenInUsePermission": "ScanCart needs your location to find nearby stores." }],
+      "expo-web-browser",
+      ["expo-speech-recognition", {
+        "microphonePermission": "ScanCart needs microphone access to hear your shopping list.",
+        "speechRecognitionPermission": "ScanCart needs speech recognition to convert your voice to text."
+      }]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "31e7eb51-34ec-4298-80e4-2bc64ee354c9"
+      }
+    },
+    "owner": "ralphknepper"
+  }
+}

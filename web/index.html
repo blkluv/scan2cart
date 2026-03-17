@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Scan2Cart - Scan Your Shopping List</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root { --primary: #0056a8; --primary-dark: #003d7a; --success: #2e7d32; --bg: #f5f5f5; --white: #fff; --gray: #666; --light-gray: #e0e0e0; --danger: #d32f2f; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: #333; min-height: 100vh; }
+    .hidden { display: none !important; }
+
+    /* Header */
+    .header { background: var(--primary); color: white; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+    .header h1 { font-size: 20px; font-weight: 700; }
+    .header-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+
+    /* Login screen */
+    .login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; padding: 24px; text-align: center; }
+    .login-screen .logo { font-size: 64px; margin-bottom: 16px; }
+    .login-screen h2 { font-size: 28px; margin-bottom: 8px; color: var(--primary); }
+    .login-screen p { color: var(--gray); margin-bottom: 32px; max-width: 400px; line-height: 1.5; }
+    .btn { padding: 14px 32px; border-radius: 12px; border: none; font-size: 16px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-success { background: var(--success); color: white; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); }
+    .btn-sm { padding: 8px 16px; font-size: 13px; }
+
+    /* Main app */
+    .app-content { padding: 16px; max-width: 600px; margin: 0 auto; }
+
+    /* Scan section */
+    .scan-area { background: white; border-radius: 16px; padding: 24px; text-align: center; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .scan-area .icon { font-size: 48px; margin-bottom: 12px; }
+    .scan-area h3 { margin-bottom: 8px; }
+    .scan-area p { color: var(--gray); font-size: 14px; margin-bottom: 16px; }
+    .scan-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+    /* Camera preview */
+    #cameraPreview { width: 100%; max-height: 400px; border-radius: 12px; background: #000; display: none; margin-bottom: 12px; }
+    #capturedImage { width: 100%; max-height: 400px; border-radius: 12px; object-fit: contain; display: none; margin-bottom: 12px; }
+
+    /* Items list */
+    .items-section { background: white; border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .items-section h3 { margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+    .item-count { font-size: 13px; color: var(--gray); font-weight: 400; }
+    .item-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--light-gray); }
+    .item-row:last-child { border-bottom: none; }
+    .item-check { width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--light-gray); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .item-check.checked { background: var(--success); border-color: var(--success); color: white; font-size: 14px; }
+    .item-name { flex: 1; font-size: 15px; }
+    .item-match { font-size: 12px; color: var(--gray); }
+    .item-remove { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 18px; padding: 4px; }
+    .item-kroger { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+    .item-kroger img { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; }
+    .item-kroger-info { font-size: 12px; color: var(--gray); }
+    .item-kroger-price { font-weight: 600; color: var(--success); }
+
+    /* Store picker */
+    .store-bar { background: white; border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .store-bar .store-icon { font-size: 24px; }
+    .store-bar .store-info { flex: 1; }
+    .store-bar .store-name { font-weight: 600; font-size: 14px; }
+    .store-bar .store-addr { font-size: 12px; color: var(--gray); }
+
+    /* Processing overlay */
+    .processing { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 200; color: white; }
+    .processing .spinner { width: 48px; height: 48px; border: 4px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 16px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .processing p { font-size: 16px; }
+
+    /* Manual input */
+    .manual-input { width: 100%; border: 2px solid var(--light-gray); border-radius: 12px; padding: 12px; font-size: 15px; font-family: inherit; resize: vertical; min-height: 120px; margin-bottom: 12px; }
+    .manual-input:focus { outline: none; border-color: var(--primary); }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 12px 24px; border-radius: 24px; font-size: 14px; z-index: 300; animation: fadeInUp 0.3s; }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
+    /* Add to cart bar */
+    .cart-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 12px 20px; box-shadow: 0 -2px 12px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 12px; z-index: 100; }
+    .cart-bar .cart-count { font-size: 14px; color: var(--gray); flex: 1; }
+    .cart-bar .btn { flex: none; }
+  </style>
+</head>
+<body>
+  <!-- LOGIN -->
+  <div id="loginScreen">
+    <div class="login-screen">
+      <div class="logo">🛒</div>
+      <h2>Scan2Cart</h2>
+      <p>Scan your handwritten shopping list and add items directly to your Kroger cart. No typing needed.</p>
+      <button class="btn btn-primary" onclick="loginKroger()">Sign in with Kroger</button>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="appScreen" class="hidden">
+    <div class="header">
+      <h1>Scan2Cart</h1>
+      <button class="header-btn" onclick="logoutKroger()">Logout</button>
+    </div>
+
+    <div class="app-content">
+      <!-- Store -->
+      <div class="store-bar" id="storeBar">
+        <div class="store-icon">🏪</div>
+        <div class="store-info">
+          <div class="store-name" id="storeName">Select your Kroger store</div>
+          <div class="store-addr" id="storeAddr">Tap to find stores near you</div>
+        </div>
+        <button class="btn btn-sm btn-outline" onclick="findStores()">Change</button>
+      </div>
+
+      <!-- Scan -->
+      <div class="scan-area">
+        <div class="icon">📷</div>
+        <h3>Scan Your List</h3>
+        <p>Take a photo of your handwritten or printed shopping list</p>
+        <video id="cameraPreview" autoplay playsinline></video>
+        <img id="capturedImage">
+        <canvas id="captureCanvas" style="display:none"></canvas>
+        <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none" onchange="handleFileSelect(this)">
+        <input type="file" id="galleryInput" accept="image/*" style="display:none" onchange="handleFileSelect(this)">
+        <div class="scan-buttons">
+          <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">📷 Take Photo</button>
+          <button class="btn btn-outline" onclick="document.getElementById('galleryInput').click()">🖼️ Pick Photo</button>
+          <button class="btn btn-outline" onclick="showManualInput()">✏️ Type List</button>
+          <button class="btn btn-outline" id="voiceBtn" onclick="toggleVoiceInput()">🎤 Speak List</button>
+        </div>
+      </div>
+
+      <!-- Voice input -->
+      <div class="scan-area hidden" id="voiceSection">
+        <div id="voiceIcon" style="font-size:48px;margin-bottom:12px">🎤</div>
+        <h3 id="voiceTitle">Speak Your List</h3>
+        <p style="color:var(--gray);font-size:14px;margin-bottom:12px">Say each item clearly. Example: "milk, eggs, bread, chicken breast, bananas"</p>
+        <div id="voiceText" style="min-height:80px;background:var(--bg);border-radius:12px;padding:12px;font-size:15px;text-align:left;margin-bottom:12px;white-space:pre-wrap"></div>
+        <div style="display:flex;gap:12px;justify-content:center">
+          <button class="btn btn-danger btn-sm" id="voiceStopBtn" onclick="stopVoiceInput()" style="display:none">⏹ Stop</button>
+          <button class="btn btn-primary btn-sm" id="voiceSearchBtn" onclick="processVoiceList()" style="display:none">🔍 Find Items</button>
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('voiceSection').classList.add('hidden')">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Manual input -->
+      <div class="scan-area hidden" id="manualSection">
+        <h3>Type Your List</h3>
+        <p>One item per line</p>
+        <textarea class="manual-input" id="manualList" placeholder="milk&#10;eggs&#10;bread&#10;chicken breast 2 lbs&#10;bananas"></textarea>
+        <button class="btn btn-primary" onclick="processManualList()">Find Items</button>
+      </div>
+
+      <!-- Items -->
+      <div class="items-section hidden" id="itemsSection">
+        <h3>Your Items <span class="item-count" id="itemCount"></span></h3>
+        <div id="itemsList"></div>
+      </div>
+    </div>
+
+    <!-- Cart bar -->
+    <div class="cart-bar hidden" id="cartBar">
+      <div class="cart-count" id="cartCount">0 items selected</div>
+      <button class="btn btn-success" onclick="addAllToCart()" id="addCartBtn">🛒 Add to Cart</button>
+    </div>
+  </div>
+
+  <!-- Processing overlay -->
+  <div class="processing hidden" id="processing">
+    <div class="spinner"></div>
+    <p id="processingText">Processing your list...</p>
+  </div>
+
+  <script>
+    const KROGER_CLIENT_ID = 'scancart-bbccbbxp';
+    const KROGER_BASE = 'https://api.kroger.com/v1';
+    const KROGER_AUTH = 'https://api.kroger.com/v1/connect/oauth2';
+    const REDIRECT_URI = window.location.origin + '/krog/callback.html';
+    const SCOPES = 'product.compact cart.basic:write profile.compact';
+
+    let accessToken = localStorage.getItem('kroger_token');
+    let refreshToken = localStorage.getItem('kroger_refresh');
+    let tokenExpiry = parseInt(localStorage.getItem('kroger_expiry') || '0');
+    let selectedStore = JSON.parse(localStorage.getItem('kroger_store') || 'null');
+    let scannedItems = [];
+
+    // Init
+    if (accessToken && Date.now() < tokenExpiry) {
+      showApp();
+    } else if (refreshToken) {
+      refreshKrogerToken();
+    }
+
+    // Check for OAuth callback
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('code')) {
+      exchangeCode(params.get('code'));
+    }
+
+    function loginKroger() {
+      const authUrl = `${KROGER_AUTH}/authorize?scope=${encodeURIComponent(SCOPES)}&response_type=code&client_id=${KROGER_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
+      window.location.href = authUrl;
+    }
+
+    async function exchangeCode(code) {
+      showProcessing('Signing in...');
+      try {
+        const res = await fetch('/krog/api/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, redirect_uri: REDIRECT_URI })
+        });
+        const data = await res.json();
+        if (data.access_token) {
+          saveTokens(data);
+          window.history.replaceState({}, '', '/krog/');
+          showApp();
+        } else {
+          showToast('Login failed');
+        }
+      } catch (e) {
+        showToast('Login failed');
+      }
+      hideProcessing();
+    }
+
+    async function refreshKrogerToken() {
+      try {
+        const res = await fetch('/krog/api/refresh', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: refreshToken })
+        });
+        const data = await res.json();
+        if (data.access_token) {
+          saveTokens(data);
+          showApp();
+        } else {
+          logoutKroger();
+        }
+      } catch (e) {
+        logoutKroger();
+      }
+    }
+
+    function saveTokens(data) {
+      accessToken = data.access_token;
+      refreshToken = data.refresh_token || refreshToken;
+      tokenExpiry = Date.now() + (data.expires_in || 1800) * 1000;
+      localStorage.setItem('kroger_token', accessToken);
+      localStorage.setItem('kroger_refresh', refreshToken);
+      localStorage.setItem('kroger_expiry', tokenExpiry);
+    }
+
+    function logoutKroger() {
+      accessToken = null; refreshToken = null; tokenExpiry = 0;
+      localStorage.removeItem('kroger_token');
+      localStorage.removeItem('kroger_refresh');
+      localStorage.removeItem('kroger_expiry');
+      document.getElementById('loginScreen').classList.remove('hidden');
+      document.getElementById('appScreen').classList.add('hidden');
+    }
+
+    function showApp() {
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('appScreen').classList.remove('hidden');
+      if (selectedStore) {
+        document.getElementById('storeName').textContent = selectedStore.name;
+        document.getElementById('storeAddr').textContent = selectedStore.address;
+      } else {
+        findStores();
+      }
+    }
+
+    // Kroger API calls (proxied through our server to avoid CORS)
+    async function krogerApi(path, opts = {}) {
+      if (Date.now() >= tokenExpiry && refreshToken) await refreshKrogerToken();
+      // Strip leading slash for proxy path
+      const proxyPath = path.startsWith('/') ? path.substring(1) : path;
+      const res = await fetch(`/krog/api/kroger/${proxyPath}`, {
+        ...opts,
+        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json', ...opts.headers }
+      });
+      if (res.status === 401) { await refreshKrogerToken(); return krogerApi(path, opts); }
+      return res.json();
+    }
+
+    // Find nearby stores
+    async function findStores() {
+      if (!navigator.geolocation) { showToast('Location not available'); return; }
+      showProcessing('Finding stores near you...');
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        try {
+          const data = await krogerApi(`/locations?filter.latLong.near=${pos.coords.latitude},${pos.coords.longitude}&filter.limit=5`);
+          hideProcessing();
+          if (data.data?.length) {
+            showStorePicker(data.data);
+          } else {
+            promptZipCode();
+          }
+        } catch (e) {
+          hideProcessing();
+          promptZipCode();
+        }
+      }, () => { hideProcessing(); promptZipCode(); });
+    }
+
+    function promptZipCode() {
+      const zip = prompt('Enter your zip code to find Kroger stores:');
+      if (!zip) return;
+      showProcessing('Finding stores...');
+      krogerApi(`/locations?filter.zipCode.near=${zip}&filter.limit=5`).then(data => {
+        hideProcessing();
+        if (data.data?.length) showStorePicker(data.data);
+        else showToast('No stores found');
+      }).catch(() => { hideProcessing(); showToast('Failed to find stores'); });
+    }
+
+    const CHAIN_CART_URLS = {
+      'KROGER': 'https://www.kroger.com/cart',
+      'KING SOOPERS': 'https://www.kingsoopers.com/cart',
+      'RALPHS': 'https://www.ralphs.com/cart',
+      'FRED MEYER': 'https://www.fredmeyer.com/cart',
+      'HARRIS TEETER': 'https://www.harristeeter.com/cart',
+      'SMITHS': 'https://www.smithsfoodanddrug.com/cart',
+      'FRY\'S': 'https://www.frysfood.com/cart',
+      'QFC': 'https://www.qfc.com/cart',
+      'DILLONS': 'https://www.dillons.com/cart',
+      'PICK N SAVE': 'https://www.picknsave.com/cart',
+      'MARIANO\'S': 'https://www.marianos.com/cart',
+      'METRO MARKET': 'https://www.metromarket.net/cart',
+      'BAKER\'S': 'https://www.bakersplus.com/cart',
+      'CITY MARKET': 'https://www.citymarket.com/cart',
+      'PAY LESS': 'https://www.pay-less.com/cart',
+      'GERBES': 'https://www.gerbes.com/cart',
+    };
+
+    function getCartUrl(storeName) {
+      const upper = (storeName || '').toUpperCase();
+      for (const [chain, url] of Object.entries(CHAIN_CART_URLS)) {
+        if (upper.includes(chain)) return url;
+      }
+      return 'https://www.kroger.com/cart';
+    }
+
+    function showStorePicker(stores) {
+      const html = stores.map(s => {
+        const addr = s.address ? `${s.address.addressLine1}, ${s.address.city}` : '';
+        const chain = s.chain || '';
+        return `<div class="item-row" style="cursor:pointer" onclick="selectStore('${s.locationId}','${s.name.replace(/'/g,"\\'")}','${addr.replace(/'/g,"\\'")}','${chain.replace(/'/g,"\\'")}')">
+          <div>🏪</div><div class="item-name"><b>${s.name}</b><br><span style="font-size:12px;color:var(--gray)">${addr}</span></div>
+        </div>`;
+      }).join('');
+      document.getElementById('itemsSection').classList.remove('hidden');
+      document.getElementById('itemsSection').querySelector('h3').innerHTML = 'Select Store';
+      document.getElementById('itemsList').innerHTML = html;
+    }
+
+    function selectStore(id, name, addr, chain) {
+      selectedStore = { id, name, address: addr, chain: chain || name };
+      localStorage.setItem('kroger_store', JSON.stringify(selectedStore));
+      document.getElementById('storeName').textContent = name;
+      document.getElementById('storeAddr').textContent = addr;
+      document.getElementById('itemsSection').classList.add('hidden');
+      showToast('Store selected: ' + name);
+    }
+
+    // File/camera handling
+    function handleFileSelect(input) {
+      if (!input.files?.[0]) return;
+      const file = input.files[0];
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        document.getElementById('capturedImage').src = e.target.result;
+        document.getElementById('capturedImage').style.display = 'block';
+        processImage(e.target.result);
+      };
+      reader.readAsDataURL(file);
+      input.value = '';
+    }
+
+    async function processImage(imageData) {
+      showProcessing('Reading your shopping list...');
+      try {
+        const res = await fetch('/krog/api/ocr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: imageData })
+        });
+        const data = await res.json();
+        if (data.items?.length) {
+          scannedItems = data.items.map(i => ({ name: i, checked: true, krogerProduct: null }));
+          await matchKrogerProducts();
+          renderItems();
+        } else {
+          showToast('Could not read any items. Try again or type manually.');
+        }
+      } catch (e) {
+        showToast('Failed to process image');
+      }
+      hideProcessing();
+    }
+
+    function showManualInput() {
+      document.getElementById('manualSection').classList.toggle('hidden');
+    }
+
+    // ========== VOICE INPUT ==========
+    let _recognition = null;
+    let _voiceResult = '';
+
+    function toggleVoiceInput() {
+      const section = document.getElementById('voiceSection');
+      section.classList.toggle('hidden');
+      if (!section.classList.contains('hidden')) {
+        startVoiceInput();
+      }
+    }
+
+    function startVoiceInput() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        showToast('Speech recognition not supported on this browser');
+        return;
+      }
+
+      _recognition = new SpeechRecognition();
+      _recognition.continuous = true;
+      _recognition.interimResults = true;
+      _recognition.lang = 'en-US';
+      _voiceResult = '';
+
+      document.getElementById('voiceIcon').textContent = '🔴';
+      document.getElementById('voiceTitle').textContent = 'Listening...';
+      document.getElementById('voiceStopBtn').style.display = 'inline-flex';
+      document.getElementById('voiceSearchBtn').style.display = 'none';
+      document.getElementById('voiceText').textContent = 'Say your items...';
+
+      let _finalTranscript = _voiceResult || '';
+      let _interimTranscript = '';
+
+      _recognition.onresult = (event) => {
+        _interimTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          if (event.results[i].isFinal) {
+            _finalTranscript += ((_finalTranscript ? ', ' : '') + event.results[i][0].transcript.trim());
+          } else {
+            _interimTranscript += event.results[i][0].transcript;
+          }
+        }
+        _voiceResult = _finalTranscript;
+        document.getElementById('voiceText').textContent = _finalTranscript + (_interimTranscript ? '\n...' + _interimTranscript : '');
+      };
+
+      _recognition.onerror = (event) => {
+        console.log('Speech error:', event.error);
+        if (event.error === 'not-allowed') {
+          showToast('Microphone access denied');
+        } else if (event.error !== 'no-speech') {
+          stopVoiceInput();
+        }
+      };
+
+      _recognition.onend = () => {
+        // Auto-restart to keep listening between pauses
+        if (document.getElementById('voiceStopBtn').style.display !== 'none') {
+          try { _recognition.start(); } catch(e) {}
+        }
+      };
+
+      _recognition.start();
+    }
+
+    function stopVoiceInput() {
+      if (_recognition) {
+        _recognition.onend = null;
+        _recognition.stop();
+        _recognition = null;
+      }
+      document.getElementById('voiceIcon').textContent = '🎤';
+      document.getElementById('voiceTitle').textContent = 'Review Your List';
+      document.getElementById('voiceStopBtn').style.display = 'none';
+      if (_voiceResult.trim()) {
+        document.getElementById('voiceSearchBtn').style.display = 'inline-flex';
+      }
+    }
+
+    async function processVoiceList() {
+      if (!_voiceResult.trim()) return;
+
+      // Use Claude to parse spoken text into a clean item list
+      showProcessing('Processing your list...');
+      try {
+        const res = await fetch('/krog/api/parse-voice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: _voiceResult })
+        });
+        const data = await res.json();
+        if (data.items?.length) {
+          scannedItems = data.items.map(i => ({ name: i, checked: true, krogerProduct: null }));
+          await matchKrogerProducts();
+          renderItems();
+        } else {
+          // Fallback: split by commas and common separators
+          const items = _voiceResult.split(/,|and\s|then\s|\.\s/i).map(s => s.trim()).filter(Boolean);
+          scannedItems = items.map(i => ({ name: i, checked: true, krogerProduct: null }));
+          await matchKrogerProducts();
+          renderItems();
+        }
+      } catch (e) {
+        // Fallback: simple split
+        const items = _voiceResult.split(/,|and\s|then\s|\.\s/i).map(s => s.trim()).filter(Boolean);
+        scannedItems = items.map(i => ({ name: i, checked: true, krogerProduct: null }));
+        await matchKrogerProducts();
+        renderItems();
+      }
+      hideProcessing();
+      document.getElementById('voiceSection').classList.add('hidden');
+    }
+
+    async function processManualList() {
+      const text = document.getElementById('manualList').value.trim();
+      if (!text) return;
+      const items = text.split('\n').map(l => l.trim()).filter(Boolean);
+      if (!items.length) return;
+      scannedItems = items.map(i => ({ name: i, checked: true, krogerProduct: null }));
+      showProcessing('Finding products...');
+      await matchKrogerProducts();
+      renderItems();
+      hideProcessing();
+      document.getElementById('manualSection').classList.add('hidden');
+    }
+
+    // Match items to Kroger products
+    async function matchKrogerProducts() {
+      for (let i = 0; i < scannedItems.length; i++) {
+        document.getElementById('processingText').textContent = `Finding: ${scannedItems[i].name} (${i+1}/${scannedItems.length})`;
+        try {
+          let url = `/products?filter.term=${encodeURIComponent(scannedItems[i].name)}&filter.limit=1`;
+          if (selectedStore?.id) url += `&filter.locationId=${selectedStore.id}`;
+          let data = await krogerApi(url);
+          // If location not found in certification, retry without location
+          if (data.errors || !data.data?.length) {
+            url = `/products?filter.term=${encodeURIComponent(scannedItems[i].name)}&filter.limit=1`;
+            data = await krogerApi(url);
+          }
+          console.log('Kroger search:', scannedItems[i].name, data);
+          if (data.data?.[0]) {
+            const p = data.data[0];
+            const img = p.images?.[0]?.sizes?.find(s => s.size === 'thumbnail')?.url || p.images?.[0]?.sizes?.[0]?.url || '';
+            const price = p.items?.[0]?.price?.regular || p.items?.[0]?.price?.promo || 0;
+            scannedItems[i].krogerProduct = {
+              upc: p.upc,
+              productId: p.productId,
+              description: p.description,
+              brand: p.brand,
+              image: img,
+              price: price,
+              size: p.items?.[0]?.size || ''
+            };
+          }
+        } catch (e) {}
+      }
+    }
+
+    function renderItems() {
+      const el = document.getElementById('itemsList');
+      const section = document.getElementById('itemsSection');
+      section.classList.remove('hidden');
+      section.querySelector('h3').innerHTML = `Your Items <span class="item-count">${scannedItems.length} items</span>`;
+
+      el.innerHTML = scannedItems.map((item, i) => {
+        const kp = item.krogerProduct;
+        let matchHtml = '';
+        if (kp) {
+          matchHtml = `<div class="item-kroger">
+            ${kp.image ? `<img src="${kp.image}" alt="">` : ''}
+            <div><div class="item-kroger-info">${kp.brand || ''} ${kp.description || ''} ${kp.size || ''}</div>
+            <div class="item-kroger-price">${kp.price ? '$' + kp.price.toFixed(2) : ''}</div></div>
+          </div>`;
+        } else {
+          matchHtml = '<div class="item-match">No match found</div>';
+        }
+        return `<div class="item-row" style="flex-wrap:wrap">
+          <div class="item-check ${item.checked ? 'checked' : ''}" onclick="toggleItem(${i})">${item.checked ? '✓' : ''}</div>
+          <div class="item-name">${item.name}</div>
+          <button class="item-remove" onclick="removeItem(${i})">✕</button>
+          <div style="width:100%;padding-left:32px">${matchHtml}</div>
+        </div>`;
+      }).join('');
+
+      updateCartBar();
+    }
+
+    function toggleItem(i) {
+      scannedItems[i].checked = !scannedItems[i].checked;
+      renderItems();
+    }
+
+    function removeItem(i) {
+      scannedItems.splice(i, 1);
+      renderItems();
+    }
+
+    function updateCartBar() {
+      const checked = scannedItems.filter(i => i.checked && i.krogerProduct);
+      const bar = document.getElementById('cartBar');
+      if (checked.length) {
+        bar.classList.remove('hidden');
+        const total = checked.reduce((s, i) => s + (i.krogerProduct.price || 0), 0);
+        document.getElementById('cartCount').textContent = `${checked.length} items ~ $${total.toFixed(2)}`;
+      } else {
+        bar.classList.add('hidden');
+      }
+    }
+
+    // Add to Kroger cart
+    async function addAllToCart() {
+      const items = scannedItems.filter(i => i.checked && i.krogerProduct);
+      if (!items.length) return;
+      showProcessing('Adding to your Kroger cart...');
+      try {
+        const cartItems = items.map(i => ({
+          upc: i.krogerProduct.upc,
+          quantity: 1
+        }));
+        const res = await krogerApi('/cart/add', {
+          method: 'PUT',
+          body: JSON.stringify({ items: cartItems })
+        });
+        hideProcessing();
+        showToast(`${items.length} items added to your Kroger cart! Redirecting...`);
+        // Clear list
+        scannedItems = [];
+        renderItems();
+        document.getElementById('capturedImage').style.display = 'none';
+        // Redirect to Kroger cart after short delay
+        setTimeout(() => {
+          window.open(getCartUrl(selectedStore?.chain || selectedStore?.name), '_blank');
+        }, 1500);
+      } catch (e) {
+        hideProcessing();
+        showToast('Failed to add to cart');
+      }
+    }
+
+    // UI helpers
+    function showProcessing(text) {
+      document.getElementById('processingText').textContent = text;
+      document.getElementById('processing').classList.remove('hidden');
+    }
+    function hideProcessing() { document.getElementById('processing').classList.add('hidden'); }
+    function showToast(msg) {
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 3000);
+    }
+  </script>
+</body>
+</html>
