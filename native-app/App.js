@@ -29,7 +29,7 @@ export default function App() {
     try {
       const match = url.match(/code=([^&]+)/);
       if (match) {
-        const data = await exchangeCode(decodeURIComponent(match[1]), 'https://haiti1.com/krog/callback.html');
+        const data = await exchangeCode(decodeURIComponent(match[1]), 'https://scan2cart.vercel.app/krog/callback.html');
         if (data.access_token) {
           await saveTokens(data);
           setScreen('home');
