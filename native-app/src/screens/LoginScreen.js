@@ -6,7 +6,7 @@ import { COLORS, KROGER_CLIENT_ID, SCOPES } from '../config/constants';
 import { exchangeCode, saveTokens } from '../services/api';
 
 const { width } = Dimensions.get('window');
-const REDIRECT_URI = 'https://haiti1.com/krog/callback.html';
+const REDIRECT_URI = 'https://scan2cart.vercel.app/krog/callback.html';
 
 export default function LoginScreen({ onLogin }) {
   async function handleLogin() {
