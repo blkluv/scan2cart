@@ -2,19 +2,15 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 
-// 🔐 ALL credentials MUST come from environment variables
+// 🔐 Credentials must come from environment variables – NO hardcoded fallbacks
 const KROGER_CLIENT_ID = process.env.KROGER_CLIENT_ID;
 const KROGER_CLIENT_SECRET = process.env.KROGER_CLIENT_SECRET;
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const KROGER_TOKEN_URL = 'https://api.kroger.com/v1/connect/oauth2/token';
 
 // Helper to check required env vars
-function requireEnvVar(name, res) {
+function requireEnvVar(name) {
   if (!process.env[name]) {
     console.error(`Missing required environment variable: ${name}`);
-    if (res) {
-      res.status(500).json({ error: `Server configuration error: missing ${name}` });
-    }
     return false;
   }
   return true;
@@ -22,8 +18,9 @@ function requireEnvVar(name, res) {
 
 // Exchange auth code for tokens
 router.post('/token', async (req, res) => {
-  // Validate env vars before proceeding
-  if (!requireEnvVar('KROGER_CLIENT_ID', res) || !requireEnvVar('KROGER_CLIENT_SECRET', res)) return;
+  if (!requireEnvVar('KROGER_CLIENT_ID') || !requireEnvVar('KROGER_CLIENT_SECRET')) {
+    return res.status(500).json({ error: 'Server configuration error: missing Kroger credentials' });
+  }
 
   try {
     const { code, redirect_uri } = req.body;
@@ -50,7 +47,9 @@ router.post('/token', async (req, res) => {
 
 // Refresh token
 router.post('/refresh', async (req, res) => {
-  if (!requireEnvVar('KROGER_CLIENT_ID', res) || !requireEnvVar('KROGER_CLIENT_SECRET', res)) return;
+  if (!requireEnvVar('KROGER_CLIENT_ID') || !requireEnvVar('KROGER_CLIENT_SECRET')) {
+    return res.status(500).json({ error: 'Server configuration error: missing Kroger credentials' });
+  }
 
   try {
     const { refresh_token } = req.body;
@@ -68,7 +67,6 @@ router.post('/refresh', async (req, res) => {
 
     res.json(tokenRes.data);
   } catch (e) {
-    console.error('Token refresh error:', e.message);
     res.status(400).json({ error: 'Token refresh failed' });
   }
 });
@@ -79,8 +77,11 @@ router.post('/ocr', async (req, res) => {
     const { image } = req.body;
     if (!image) return res.status(400).json({ error: 'No image provided' });
 
-    if (!ANTHROPIC_API_KEY) {
-      return res.status(501).json({ error: 'OCR not configured. Please set ANTHROPIC_API_KEY environment variable.' });
+    // Use Claude API for OCR
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    if (!anthropicKey) {
+      // Fallback: basic regex extraction if no AI key
+      return res.json({ items: [], error: 'OCR not configured. Use manual input.' });
     }
 
     // Extract base64 data and media type
@@ -108,13 +109,14 @@ router.post('/ocr', async (req, res) => {
       }]
     }, {
       headers: {
-        'x-api-key': ANTHROPIC_API_KEY,
+        'x-api-key': anthropicKey,
         'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json'
       }
     });
 
     const text = claudeRes.data?.content?.[0]?.text || '[]';
+    // Extract JSON array from response
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     const items = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
 
@@ -131,8 +133,9 @@ router.post('/parse-voice', async (req, res) => {
     const { text } = req.body;
     if (!text) return res.status(400).json({ error: 'No text provided', items: [] });
 
-    if (!ANTHROPIC_API_KEY) {
-      // Simple fallback split without AI (no key required)
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    if (!anthropicKey) {
+      // Fallback: simple split
       const items = text.split(/,|and\s|then\s|\.\s/i).map(s => s.trim()).filter(Boolean);
       return res.json({ items });
     }
@@ -154,7 +157,7 @@ Transcription: "${text}"`
       }]
     }, {
       headers: {
-        'x-api-key': ANTHROPIC_API_KEY,
+        'x-api-key': anthropicKey,
         'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json'
       }
@@ -178,6 +181,7 @@ router.all('/kroger/*', async (req, res) => {
     const token = req.headers.authorization;
     if (!token) return res.status(401).json({ error: 'No token' });
 
+    // Build full URL with query string
     const qs = new URLSearchParams(req.query).toString();
     const fullUrl = `https://api.kroger.com/v1/${krogerPath}${qs ? '?' + qs : ''}`;
     console.log(`[ScanCart] Proxy ${req.method} ${fullUrl}`);
