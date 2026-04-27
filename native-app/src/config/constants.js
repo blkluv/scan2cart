@@ -1,7 +1,7 @@
-export const API_BASE = 'https://haiti1.com/krog/api';
+export const API_BASE = 'https://scan2cart.vercel.app/krog/api';
 export const KROGER_AUTH_URL = 'https://api.kroger.com/v1/connect/oauth2';
-export const KROGER_CLIENT_ID = 'scancart-bbccbbxp';
-export const REDIRECT_URI = 'https://haiti1.com/krog/callback.html';
+export const KROGER_CLIENT_ID = 'nebruhcart-bbcd024r';
+export const REDIRECT_URI = 'https://scan2cart.vercel.app/krog/callback.html';
 export const SCOPES = 'product.compact cart.basic:write profile.compact';
 export const COLORS = {
   primary: '#1a73e8',
