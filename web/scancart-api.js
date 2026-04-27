@@ -2,26 +2,12 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 
-// 🔐 Credentials must come from environment variables – NO hardcoded fallbacks
-const KROGER_CLIENT_ID = process.env.KROGER_CLIENT_ID;
-const KROGER_CLIENT_SECRET = process.env.KROGER_CLIENT_SECRET;
+const KROGER_CLIENT_ID = process.env.KROGER_CLIENT_ID || 'nebruhcart-bbcd024r';
+const KROGER_CLIENT_SECRET = process.env.KROGER_CLIENT_SECRET || 'ythWyMxxZtyyIV5fftgC1s7yrzvuMR5qNr6a6p2B';
 const KROGER_TOKEN_URL = 'https://api.kroger.com/v1/connect/oauth2/token';
-
-// Helper to check required env vars
-function requireEnvVar(name) {
-  if (!process.env[name]) {
-    console.error(`Missing required environment variable: ${name}`);
-    return false;
-  }
-  return true;
-}
 
 // Exchange auth code for tokens
 router.post('/token', async (req, res) => {
-  if (!requireEnvVar('KROGER_CLIENT_ID') || !requireEnvVar('KROGER_CLIENT_SECRET')) {
-    return res.status(500).json({ error: 'Server configuration error: missing Kroger credentials' });
-  }
-
   try {
     const { code, redirect_uri } = req.body;
     const auth = Buffer.from(`${KROGER_CLIENT_ID}:${KROGER_CLIENT_SECRET}`).toString('base64');
@@ -47,10 +33,6 @@ router.post('/token', async (req, res) => {
 
 // Refresh token
 router.post('/refresh', async (req, res) => {
-  if (!requireEnvVar('KROGER_CLIENT_ID') || !requireEnvVar('KROGER_CLIENT_SECRET')) {
-    return res.status(500).json({ error: 'Server configuration error: missing Kroger credentials' });
-  }
-
   try {
     const { refresh_token } = req.body;
     const auth = Buffer.from(`${KROGER_CLIENT_ID}:${KROGER_CLIENT_SECRET}`).toString('base64');
@@ -174,7 +156,7 @@ Transcription: "${text}"`
   }
 });
 
-// Proxy Kroger API calls (avoids CORS issues) – no secrets involved
+// Proxy Kroger API calls (avoids CORS issues)
 router.all('/kroger/*', async (req, res) => {
   try {
     const krogerPath = req.params[0];
